@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Text candidate</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --text:#1c2230; --muted:#6b7385; --accent:#0a7cff; --border:#e2e5eb; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#111418; --card:#1b1f26; --text:#e8ebf0; --muted:#98a0b0; --accent:#3d9bff; --border:#2c323c; }
+  }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  main { max-width:480px; margin:0 auto; padding:24px 16px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px; }
+  .label { color:var(--muted); font-size:13px; margin:0 0 4px; }
+  .to { font-size:20px; font-weight:600; margin:0 0 16px; }
+  .msg { white-space:pre-wrap; margin:0 0 20px; }
+  a.btn { display:block; text-align:center; background:var(--accent); color:#fff; text-decoration:none; font-weight:600; padding:14px; border-radius:10px; }
+  .err { color:#d33; }
+</style>
+</head>
+<body>
+<main>
+  <div class="card" id="card">
+    <p class="label">To</p>
+    <p class="to" id="to"></p>
+    <p class="label">Message</p>
+    <p class="msg" id="msg"></p>
+    <a class="btn" id="send" href="#">Open in Messages</a>
+  </div>
+</main>
+<script>
+  // Everything comes from the URL fragment (#to=...&body=...), which the
+  // browser never sends to the server -- candidate details stay on the phone.
+  // Parsed by hand rather than URLSearchParams, which would turn the "+" in
+  // "+61..." into a space.
+  var params = {};
+  location.hash.replace(/^#/, "").split("&").forEach(function (pair) {
+    var i = pair.indexOf("=");
+    if (i < 0) return;
+    try { params[pair.slice(0, i)] = decodeURIComponent(pair.slice(i + 1)); } catch (e) {}
+  });
+
+  var to = (params.to || "").replace(/[^\d+]/g, "");
+  var body = params.body || "";
+  var card = document.getElementById("card");
+
+  if (!/^\+?\d{8,15}$/.test(to)) {
+    card.innerHTML = '<p class="err">This link has no valid phone number.</p>';
+  } else {
+    var sms = "sms:" + to + (body ? "?body=" + encodeURIComponent(body) : "");
+    document.getElementById("to").textContent = to;
+    document.getElementById("msg").textContent = body;
+    document.getElementById("send").href = sms;
+    location.href = sms; // try opening straight away; the button is the fallback
+  }
+</script>
+</body>
+</html>
