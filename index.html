@@ -7,35 +7,41 @@
 <meta name="referrer" content="no-referrer">
 <title>Text candidate</title>
 <style>
-  :root { --bg:#f6f7f9; --card:#fff; --text:#1c2230; --muted:#6b7385; --accent:#0a7cff; --border:#e2e5eb; }
+  :root { --bg:#f6f7f9; --card:#fff; --text:#1c2230; --muted:#6b7385; --accent:#0a7cff; --accent2:#1f9d55; --border:#e2e5eb; }
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#111418; --card:#1b1f26; --text:#e8ebf0; --muted:#98a0b0; --accent:#3d9bff; --border:#2c323c; }
+    :root { --bg:#111418; --card:#1b1f26; --text:#e8ebf0; --muted:#98a0b0; --accent:#3d9bff; --accent2:#34b36b; --border:#2c323c; }
   }
   body { margin:0; background:var(--bg); color:var(--text); font:16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
   main { max-width:480px; margin:0 auto; padding:24px 16px; }
   .card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px; }
   .label { color:var(--muted); font-size:13px; margin:0 0 4px; }
-  .to { font-size:20px; font-weight:600; margin:0 0 16px; }
+  .name { font-size:20px; font-weight:600; margin:0; }
+  .sub { color:var(--muted); margin:0 0 16px; }
   .msg { white-space:pre-wrap; margin:0 0 20px; }
-  a.btn { display:block; text-align:center; background:var(--accent); color:#fff; text-decoration:none; font-weight:600; padding:14px; border-radius:10px; }
+  .btn { display:block; width:100%; box-sizing:border-box; text-align:center; color:#fff; text-decoration:none; font:inherit; font-weight:600; padding:14px; border:0; border-radius:10px; margin-top:10px; cursor:pointer; }
+  .save { background:var(--accent2); }
+  .send { background:var(--accent); }
+  .done { opacity:.6; }
   .err { color:#d33; }
+  [hidden] { display:none !important; }
 </style>
 </head>
 <body>
 <main>
   <div class="card" id="card">
-    <p class="label">To</p>
-    <p class="to" id="to"></p>
+    <p class="name" id="name"></p>
+    <p class="sub" id="sub"></p>
     <p class="label">Message</p>
     <p class="msg" id="msg"></p>
-    <a class="btn" id="send" href="#">Open in Messages</a>
+    <button class="btn save" id="save" hidden>1. Save contact</button>
+    <a class="btn send" id="send" href="#">Open in Messages</a>
   </div>
 </main>
 <script>
-  // Everything comes from the URL fragment (#to=...&body=...), which the
-  // browser never sends to the server -- candidate details stay on the phone.
-  // Parsed by hand rather than URLSearchParams, which would turn the "+" in
-  // "+61..." into a space.
+  // Link format: #to=%2B61400000000&name=Jane%20Smith&role=Network%20Operations%20Coordinator&body=...
+  // Everything comes from the URL fragment, which the browser never sends to
+  // the server -- candidate details stay on the phone. Parsed by hand rather
+  // than URLSearchParams, which would turn the "+" in "+61..." into a space.
   var params = {};
   location.hash.replace(/^#/, "").split("&").forEach(function (pair) {
     var i = pair.indexOf("=");
@@ -44,17 +50,60 @@
   });
 
   var to = (params.to || "").replace(/[^\d+]/g, "");
+  var name = (params.name || "").trim();
+  var role = (params.role || "").trim();
   var body = params.body || "";
+
+  // vCard text values escape backslash, comma, semicolon and newlines.
+  function esc(s) {
+    return s.replace(/\\/g, "\\\\").replace(/,/g, "\\,").replace(/;/g, "\\;").replace(/\r?\n/g, "\\n");
+  }
+
+  function vcard() {
+    var parts = name.split(/\s+/);
+    var last = parts.length > 1 ? parts.pop() : "";
+    var first = parts.join(" ");
+    var lines = [
+      "BEGIN:VCARD",
+      "VERSION:3.0",
+      "N:" + esc(last) + ";" + esc(first) + ";;;",
+      "FN:" + esc(name),
+      "TEL;TYPE=CELL:" + to,
+      "ORG:" + esc("Candidate" + (role ? " - " + role : "")),
+      "NOTE:" + esc("Texted via MTR on " + new Date().toLocaleDateString("en-AU")),
+      "END:VCARD"
+    ];
+    return lines.join("\r\n") + "\r\n";
+  }
+
   var card = document.getElementById("card");
 
   if (!/^\+?\d{8,15}$/.test(to)) {
     card.innerHTML = '<p class="err">This link has no valid phone number.</p>';
   } else {
     var sms = "sms:" + to + (body ? "?body=" + encodeURIComponent(body) : "");
-    document.getElementById("to").textContent = to;
+    var send = document.getElementById("send");
+    document.getElementById("name").textContent = name || to;
+    document.getElementById("sub").textContent = [name ? to : "", role].filter(Boolean).join(" \u00b7 ");
     document.getElementById("msg").textContent = body;
-    document.getElementById("send").href = sms;
-    location.href = sms; // try opening straight away; the button is the fallback
+    send.href = sms;
+
+    if (name) {
+      // Save the contact first, then text -- so no automatic jump to Messages.
+      var save = document.getElementById("save");
+      save.hidden = false;
+      send.textContent = "2. Open in Messages";
+      save.addEventListener("click", function () {
+        var blob = new Blob([vcard()], { type: "text/vcard" });
+        save.classList.add("done");
+        save.textContent = "Contact card opened \u2014 tap Create New Contact";
+        location.href = URL.createObjectURL(blob);
+      });
+    } else {
+      // No name to save: behave as before and open Messages straight away.
+      send.textContent = "Open in Messages";
+      location.href = sms;
+    }
   }
 </script>
 </body>
