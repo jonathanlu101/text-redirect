@@ -63,13 +63,16 @@
     var parts = name.split(/\s+/);
     var last = parts.length > 1 ? parts.pop() : "";
     var first = parts.join(" ");
+    // Role goes in brackets after the last name, so it shows in Recents,
+    // Messages and on incoming calls -- the company field only shows on the card.
+    if (role) last = (last ? last + " " : "") + "(" + role + ")";
     var lines = [
       "BEGIN:VCARD",
       "VERSION:3.0",
       "N:" + esc(last) + ";" + esc(first) + ";;;",
-      "FN:" + esc(name),
+      "FN:" + esc((first + " " + last).trim()),
       "TEL;TYPE=CELL:" + to,
-      "ORG:" + esc("Candidate" + (role ? " - " + role : "")),
+      "ORG:Candidate",
       "NOTE:" + esc("Texted via MTR on " + new Date().toLocaleDateString("en-AU")),
       "END:VCARD"
     ];
