@@ -60,12 +60,11 @@
   }
 
   function vcard() {
-    var parts = name.split(/\s+/);
-    var last = parts.length > 1 ? parts.pop() : "";
-    var first = parts.join(" ");
-    // Role goes in brackets after the last name, so it shows in Recents,
-    // Messages and on incoming calls -- the company field only shows on the card.
-    if (role) last = (last ? last + " " : "") + "(" + role + ")";
+    // Full name goes in First name; the role, in brackets, is the Last name,
+    // so it shows in Recents, Messages and on incoming calls -- the company
+    // field only shows on the card.
+    var first = name;
+    var last = role ? "(" + role + ")" : "";
     var lines = [
       "BEGIN:VCARD",
       "VERSION:3.0",
